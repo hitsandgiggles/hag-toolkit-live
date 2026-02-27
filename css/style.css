@@ -88,6 +88,9 @@ main {
   overflow:auto;
   border-right: 1px solid rgba(0,0,0,0.08);
   padding: 18px 14px;
+
+  display:flex;
+  flex-direction:column;
 }
 
 @media (max-width: 860px){
@@ -191,7 +194,31 @@ main {
   color: var(--accent);
   border-color: rgba(255,255,255,0.60);
 }
+/* Sidebar status (non-clickable text at bottom) */
+.sideStatus{
+  margin-top:auto;
+  padding-top: 14px;
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+}
 
+.sideStatusItem{
+  font-size: 13px;
+  line-height: 1.2;
+  color: rgba(255,255,255,0.92);
+  padding: 2px 2px;
+}
+
+/* Keep the auction page strategy state styling working */
+.sideStatusItem.strategy-active{
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.sideStatusItem.strategy-neutral{
+  opacity: 0.90;
+}
 .content{
   flex: 1 1 auto;
   min-width: 0;
