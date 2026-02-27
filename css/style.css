@@ -75,11 +75,15 @@ main {
 .appShell{
   display:flex;
   min-height:100vh;
+
+  transform: scale(0.9);
+  transform-origin: top left;
+  width: 111.111%;
 }
 
 .sidebar{
-  width:240px;
-  flex:0 0 240px;
+  width:194px;
+  flex:0 0 194px;
   background: var(--accent);
   color:#FFFFFF;
   position:sticky;
