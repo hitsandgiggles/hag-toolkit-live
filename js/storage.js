@@ -9,6 +9,11 @@ export function load(key, fallback) {
     return fallback;
   }
 }
+
+export function save(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
 export const DEFAULT_WEIGHTS = {
   // Hitting
   AVG: 1.0,
@@ -27,7 +32,7 @@ export const DEFAULT_WEIGHTS = {
   QS: 1.0,
   K: 1.0,
   SV: 1.0,
-  HLD: 1.0
+  HLD: 1.0,
 };
 
 // Migration: older builds used the key "SBN" for stolen bases.
@@ -40,6 +45,7 @@ function migrateWeights(obj) {
   }
   return obj;
 }
+
 function normalizeCategoryWeights(partial) {
   const obj = migrateWeights(partial && typeof partial === "object" ? { ...partial } : {});
   const out = { ...DEFAULT_WEIGHTS };
@@ -50,10 +56,6 @@ function normalizeCategoryWeights(partial) {
   }
 
   return out;
-}
-
-export function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
 }
 
 // -------------------------
@@ -71,7 +73,7 @@ export function getSettings() {
     category_weights_updated_at: null,
 
     // UI preference: which value column to show in Auction Board
-    value_mode: "proj" // "proj" | "market"
+    value_mode: "proj", // "proj" | "market"
   });
 
   // Self-heal + migrate strategy weights (belt + suspenders)
@@ -91,7 +93,7 @@ export function setCategoryWeights(nextWeights) {
   const merged = {
     ...DEFAULT_WEIGHTS,
     ...(s.category_weights || {}),
-    ...(nextWeights || {})
+    ...(nextWeights || {}),
   };
 
   const normalized = normalizeCategoryWeights(merged);
@@ -99,18 +101,16 @@ export function setCategoryWeights(nextWeights) {
   save("hag_settings", {
     ...s,
     category_weights: normalized,
-    category_weights_updated_at: Date.now()
+    category_weights_updated_at: Date.now(),
   });
 
   return normalized;
 }
 
-
 export function getCategoryWeightsUpdatedAt() {
   const s = getSettings();
   return s.category_weights_updated_at ?? null;
 }
-
 
 export function setSettings(next) {
   const prev = getSettings();
@@ -161,26 +161,27 @@ export function getRoster() {
       if (!prev) {
         byId.set(nextId, { ...r, id: nextId, type, name });
       } else {
-        byId.set(nextId, normalizeRosterPlayer({
-          ...prev,
-          ...r,
-          id: nextId,
-          type,
-          name,
-          // keep the "most committed" contract markers
-          underContract: Boolean(prev.underContract || r.underContract),
-          contractYear: Number.isFinite(Number(prev.contractYear)) ? prev.contractYear : r.contractYear,
-          contractTotal: Number.isFinite(Number(prev.contractTotal)) ? prev.contractTotal : r.contractTotal,
-          price: Number.isFinite(Number(prev.price)) ? prev.price : r.price,
-        }));
+        byId.set(
+          nextId,
+          normalizeRosterPlayer({
+            ...prev,
+            ...r,
+            id: nextId,
+            type,
+            name,
+            // keep the "most committed" contract markers
+            underContract: Boolean(prev.underContract || r.underContract),
+            contractYear: Number.isFinite(Number(prev.contractYear)) ? prev.contractYear : r.contractYear,
+            contractTotal: Number.isFinite(Number(prev.contractTotal)) ? prev.contractTotal : r.contractTotal,
+            price: Number.isFinite(Number(prev.price)) ? prev.price : r.price,
+          })
+        );
       }
     }
 
     const migrated = Array.from(byId.values());
     // Only write back if something changed (id migration or de-dupe)
-    const changed =
-      migrated.length !== roster.length ||
-      migrated.some((r, i) => r.id !== roster[i]?.id);
+    const changed = migrated.length !== roster.length || migrated.some((r, i) => r.id !== roster[i]?.id);
 
     if (changed) setRoster(migrated);
     return migrated;
@@ -188,6 +189,7 @@ export function getRoster() {
 
   return roster;
 }
+
 export function setRoster(next) {
   save(ROSTER_KEY, next);
 }
@@ -223,7 +225,7 @@ function normalizeRosterPlayer(p) {
     id: String(p.id),
     name: String(p.name ?? ""),
     type: p.type === "hit" || p.type === "pit" ? p.type : "hit",
-    team: String(p.team ?? ""),     // ✅ NEW
+    team: String(p.team ?? ""), // ✅ NEW
     pos: String(p.pos ?? ""),
     underContract,
     contractYear,
@@ -241,23 +243,23 @@ export function addToRosterFromCsv(csvPlayer) {
   const roster = getRoster();
 
   const typeRaw = String(csvPlayer?.Type ?? "").trim().toLowerCase();
-const type = typeRaw === "pit" ? "pit" : "hit";
-const name = String(csvPlayer?.Name ?? "").trim();
-const team = String(csvPlayer?.Team ?? "").trim();   // ✅ NEW
-const pos = String(csvPlayer?.POS ?? "").trim();
+  const type = typeRaw === "pit" ? "pit" : "hit";
+  const name = String(csvPlayer?.Name ?? "").trim();
+  const team = String(csvPlayer?.Team ?? "").trim(); // ✅ NEW
+  const pos = String(csvPlayer?.POS ?? "").trim();
 
-const id = getPlayerKey({ Type: type, Name: name });
+  const id = getPlayerKey({ Type: type, Name: name });
 
   const existing = roster.find((r) => r.id === id);
   if (existing) {
     // Keep existing contract info; fill blanks for name/pos/type if needed
     const merged = normalizeRosterPlayer({
-  ...existing,
-  name: existing.name || name,
-  team: existing.team || team,   // ✅ NEW
-  pos: existing.pos || pos,
-  type: existing.type || type,
-});
+      ...existing,
+      name: existing.name || name,
+      team: existing.team || team, // ✅ NEW
+      pos: existing.pos || pos,
+      type: existing.type || type,
+    });
 
     const next = roster.map((r) => (r.id === id ? merged : r));
     setRoster(next);
@@ -265,16 +267,16 @@ const id = getPlayerKey({ Type: type, Name: name });
   }
 
   const created = normalizeRosterPlayer({
-  id,
-  name,
-  type: type === "pit" ? "pit" : "hit",
-  team,                 // ✅ NEW
-  pos,
-  underContract: false,
-  contractYear: 1,
-  contractTotal: 1,
-  price: 0,
-});
+    id,
+    name,
+    type: type === "pit" ? "pit" : "hit",
+    team, // ✅ NEW
+    pos,
+    underContract: false,
+    contractYear: 1,
+    contractTotal: 1,
+    price: 0,
+  });
 
   setRoster([created, ...roster]);
   return created;
@@ -302,17 +304,42 @@ export function removeRosterPlayer(id) {
 
 /**
  * Recalculate budget_remaining based on:
- * budget_total - sum(price) for players where underContract === true
+ * budget_total - (keeper contract spend + planned auction spend)
  */
 export function recalcBudgetRemaining() {
   const settings = getSettings();
   const roster = getRoster();
 
-  const spent = roster.reduce((sum, p) => {
+  // 1) Keeper/contract money (locked)
+  const contractSpent = roster.reduce((sum, p) => {
     const under = !!p.underContract;
     const price = Math.max(0, toInt(p.price ?? 0, 0));
     return sum + (under ? price : 0);
   }, 0);
+
+  // Build a set of keeper keys so we don't double count if someone is also on the auction plan list
+  // IMPORTANT: getPlayerKey expects { Type, Name } (capital T)
+  const keeperKeys = new Set(
+    roster
+      .filter((p) => !!p.underContract)
+      .map((p) => getPlayerKey({ Type: p.type, Name: p.name }))
+      .filter(Boolean)
+  );
+
+  // 2) Planned auction money (Plan $ on Auction Board)
+  const targets = loadAuctionTargets();
+  const plannedSpent = targets.reduce((sum, t) => {
+    const plan = Math.max(0, toInt(t.plan ?? 0, 0));
+    const k = String(t.player_key || "").trim();
+
+    // Only count if it has a plan > 0 and is not already a keeper
+    if (plan <= 0) return sum;
+    if (k && keeperKeys.has(k)) return sum;
+
+    return sum + plan;
+  }, 0);
+
+  const spent = contractSpent + plannedSpent;
 
   const budgetTotal = Math.max(0, toInt(settings.budget_total ?? 0, 0));
   const remaining = Math.max(0, budgetTotal - spent);
@@ -347,9 +374,7 @@ export function getAuctionTargets() {
 export function addAuctionTarget(target) {
   const list = loadAuctionTargets();
 
-  const id =
-    (crypto?.randomUUID?.() ??
-      `t_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  const id = crypto?.randomUUID?.() ?? `t_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
   // Preserve *all* fields passed by the caller (e.g., pricing fields used by
   // the Dashboard) while still normalizing the core shape.
@@ -369,7 +394,7 @@ export function addAuctionTarget(target) {
     notes: target?.notes ?? "",
 
     // Stable join key (used by Dashboard + future joins)
-    player_key: String(target?.player_key || getPlayerKey({ type, Name: name }) || ""),
+    player_key: String(target?.player_key || getPlayerKey({ Type: type, Name: name }) || ""),
 
     // Source-of-truth persisted numbers (optional but preferred)
     val: target?.val != null && target?.val !== "" ? Number(target.val) : undefined,
@@ -380,6 +405,7 @@ export function addAuctionTarget(target) {
 
   list.unshift(created);
   saveAuctionTargets(list);
+  recalcBudgetRemaining();
 
   // ✅ return created so UI can autofill deterministically
   return created;
@@ -401,15 +427,18 @@ export function updateAuctionTarget(id, patch) {
   };
 
   saveAuctionTargets(list);
+  recalcBudgetRemaining();
 }
 
 export function removeAuctionTarget(id) {
   const list = loadAuctionTargets().filter((t) => t.id !== id);
   saveAuctionTargets(list);
+  recalcBudgetRemaining();
 }
 
 export function clearAuctionTargets() {
   saveAuctionTargets([]);
+  recalcBudgetRemaining();
 }
 
 // ==============================
