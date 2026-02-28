@@ -344,8 +344,15 @@ export function recalcBudgetRemaining() {
   const budgetTotal = Math.max(0, toInt(settings.budget_total ?? 0, 0));
   const remaining = Math.max(0, budgetTotal - spent);
 
-  const nextSettings = { ...settings, budget_remaining: remaining };
+    const nextSettings = { ...settings, budget_remaining: remaining };
   setSettings(nextSettings);
+
+  // 🔁 Notify UI to re-render header/budget widgets immediately
+  try {
+    window.dispatchEvent(
+      new CustomEvent("hag:budget-updated", { detail: { spent, remaining, budgetTotal } })
+    );
+  } catch {}
 
   return { spent, remaining, budgetTotal };
 }

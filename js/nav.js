@@ -20,3 +20,8 @@ export function hydrateHeader() {
     slotsEl.textContent = `Slots: H ${s.hitter_slots_total} / P ${s.pitcher_slots_total}`;
   }
 }
+
+// When budget changes (contracts OR auction plan $), repaint header immediately
+window.addEventListener("hag:budget-updated", () => {
+  hydrateHeader();
+});
