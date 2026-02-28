@@ -321,11 +321,26 @@ export function getBaseVal26(player) {
  * If the CSV does not contain per-cat columns, this returns baseVal unchanged.
  */
 export function getWeightedVal26(player, weights, hasCatStats, baseValOverride = null) {
-  const baseVal = (baseValOverride != null) ? baseValOverride : getBaseVal26(player);
-if (!player || !hasCatStats) return baseVal;
+  const baseVal = (baseValOverride != null)
+    ? baseValOverride
+    : getBaseVal26(player);
 
-  const w = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
+  if (!player || !hasCatStats) return baseVal;
+
+  const wRaw = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
   const cats = normType(player.type) === "pit" ? PIT_CATS : HIT_CATS;
+
+  // ---- normalize weights so average = 1 ----
+  const weightValues = cats.map(cat => num(wRaw[cat], 0));
+  const avgWeight =
+    weightValues.reduce((a, b) => a + b, 0) / (weightValues.length || 1);
+
+  const w = {};
+  for (const cat of cats) {
+    const raw = num(wRaw[cat], 0);
+    w[cat] = avgWeight > 0 ? raw / avgWeight : 1;
+  }
+  // ------------------------------------------
 
   let baseScore = 0;
   let weightedScore = 0;
@@ -334,11 +349,10 @@ if (!player || !hasCatStats) return baseVal;
   for (const cat of cats) {
     const v = getCatStat(player, cat);
     if (v == null) continue;
-    any = true;
 
-    const ww = num(w[cat], 0);
-    baseScore += v;          // implicit weight=1
-    weightedScore += v * ww; // weight applied
+    any = true;
+    baseScore += v;
+    weightedScore += v * w[cat];
   }
 
   if (!any || baseScore === 0) return baseVal;
@@ -346,7 +360,6 @@ if (!player || !hasCatStats) return baseVal;
   const scaled = baseVal * (weightedScore / baseScore);
   return Number.isFinite(scaled) ? Math.max(0, scaled) : baseVal;
 }
-
 /**
  * Compute the auction-board pricing breakdown for a target row.
  *
