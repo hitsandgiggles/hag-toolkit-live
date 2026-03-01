@@ -7,7 +7,7 @@ let ALL = [];
 let currentSort = "rank";
 
 // Final position list + required order (user spec)
-const POS_ORDER = ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF","SP","RP","CP"];
+const POS_ORDER = ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF","UT","SP","RP","CP"];
 
 // Columns considered "hitting" vs "pitching" for hide/show by Type
 const hitCols = ["AVG","OPS","TB","HR","R","RBI","SB"];
@@ -54,7 +54,7 @@ function getPosSet(p) {
     if (t === "STARER") out.add("SP");              // typo in your data
     else if (t === "P") out.add("RP");              // collapse generic P into RP
     else if (t === "SP" || t === "RP" || t === "CP") out.add(t);
-    else if (["C","1B","2B","3B","SS","LF","CF","RF","OF"].includes(t)) out.add(t);
+    else if (["C","1B","2B","3B","SS","LF","CF","RF","OF","UT"].includes(t)) out.add(t);
   });
 
   // Derive OF if any OF sub-positions exist
@@ -64,12 +64,15 @@ function getPosSet(p) {
   if (out.has("1B") || out.has("3B")) out.add("CI");
   if (out.has("2B") || out.has("SS")) out.add("MI");
 
-  // If pitcher, ensure we have SP/RP/CP only
-  if (isPitcher(p)) {
-    // If data gave neither, default to RP
+   // If pitcher, ensure we have SP/RP/CP only
+   if (isPitcher(p)) {
     if (!out.has("SP") && !out.has("RP") && !out.has("CP")) out.add("RP");
-    // Remove hitter positions if any junk leaked in
-    ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF"].forEach(x => out.delete(x));
+
+    // ✅ IMPORTANT: only strip hitter positions for *pitchers-only* players
+    // Two-way players (PA > 0 and IP > 0) should keep UT (and any hitter pos) intact.
+    if (!isHitter(p)) {
+     ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF","UT"].forEach(x => out.delete(x));
+    }
   }
 
   return out;
@@ -265,25 +268,21 @@ function render(players) {
 }
 
 function rebuild() {
-  // 1) Filter
-  const filtered = applyFilters(ALL);
+  let filtered = applyFilters(ALL);
 
-  // 2) Compute proj-rank within the filtered pool (so ranks make sense)
+  // Totals from full filtered pool (before cap)
+  updateTotals(filtered);
+
+  // ✅ Compute "Rank" as proj-rank inside this filtered pool
   assignProjRank(filtered);
 
-  // 3) Sort for display
+  // Then sort for display (header-click sort)
   const sorted = sortPlayers(filtered);
 
-  // 4) Cap for display
+  // Then cap after sort
   const capped = applyCap(sorted);
 
-  // ✅ Totals should match what’s displayed (post-cap)
-  updateTotals(capped);
-
-  // 5) Render
   render(capped);
-
-  // 6) Hide irrelevant columns based on Type
   updateColumnVisibility();
 }
 
