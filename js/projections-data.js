@@ -189,7 +189,14 @@ export async function loadPlayers() {
 
     // Identity
     obj.Name = String(obj.Name ?? obj.name ?? obj.player ?? obj.Player ?? '').trim();
-    obj.type = String(obj.type ?? obj.Type ?? '').trim().toLowerCase();
+    let rawType = String(obj.type ?? obj.Type ?? '').trim().toLowerCase();
+
+    // Normalize type to only "hit" or "pit"
+    if (["sp","rp","cp","pit"].includes(rawType)) {
+      obj.type = "pit";
+    } else {
+      obj.type = "hit";
+    }
     // Use Display Role as POS if present (your master uses this as canonical)
     obj.POS = String(obj.POS ?? obj.pos ?? obj['POS(2026)'] ?? obj['POS'] ?? obj['Display Role'] ?? obj['DisplayRole'] ?? '').trim();
     obj.POS = obj.POS.replace(/starer/ig, "SP");
@@ -202,15 +209,31 @@ export async function loadPlayers() {
     normalizeType(obj);
     normalizeStats(obj);
 
-    obj.player_key = getPlayerKey(obj);
-    return obj;
+    // --- Ensure type is always set (prevents same-name collisions when CSV type is blank) ---
+const ipNum = Number(obj.IP);
+const paNum = Number(obj.PA);
+
+if (!obj.type) {
+  // infer: if it has real pitcher workload -> pitcher, else hitter
+  obj.type = Number.isFinite(ipNum) && ipNum > 0 ? "pit" : "hit";
+}
+
+// --- Stronger key to avoid same-name collisions (Edwin Diaz SS vs CP etc.) ---
+const nameKey = String(obj.Name || "").trim().toLowerCase();
+const teamKey = String(obj.Team || "").trim().toLowerCase();
+const typeKey = String(obj.type || "").trim().toLowerCase();
+const posKey  = String(obj.POS  || "").trim().toLowerCase();
+
+obj.player_key = `${nameKey}|${teamKey}|${typeKey}|${posKey}`;
+
+return obj;
   });
 
   // ✅ Dedupe here so UI/search/tables all operate on the same canonical set
   const dedupedPlayers = dedupeByPlayerKey(players);
 
   const hitters = dedupedPlayers.filter((p) => p.type === "hit");
-  const pitchers = dedupedPlayers.filter((p) => ["pit", "sp", "rp"].includes(p.type));
+  const pitchers = dedupedPlayers.filter((p) => ["pit", "sp", "rp", "cp"].includes(p.type));
 
   return { players: dedupedPlayers, hitters, pitchers };
 }
