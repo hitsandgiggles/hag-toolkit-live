@@ -554,12 +554,28 @@ async function initAuctionPool() {
   }
 }
 
-function tierFromCsv(n) {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return "";
-  if (x <= 1.5) return "A";
-  if (x <= 3.5) return "B";
-  return "C";
+function normalizeTier(t) {
+  const x = String(t ?? "").trim().toUpperCase();
+  return ["S","A","B","C","D","F"].includes(x) ? x : "";
+}
+
+function tierFromValue(v) {
+  const x = Number(v);
+  if (!Number.isFinite(x)) return "F";
+  if (x >= 45) return "S";
+  if (x >= 35) return "A";
+  if (x >= 25) return "B";
+  if (x >= 15) return "C";
+  if (x >= 5) return "D";
+  return "F";
+}
+
+function getTierForPlayer(p, mode) {
+  // Tier is derived from the current Value View baseline:
+  // - Proj Anchor mode: uses Proj Anchor (or fallback base)
+  // - Market Estimate mode: uses Market Estimate
+  const v = getBaselineVal(p, mode);
+  return tierFromValue(v);
 }
 
 function lookupPlayerByName(name) {
@@ -633,17 +649,18 @@ function applyCsvAutofill(targetId, typedName) {
   const curPlan = num(current.plan);
   const curMax = num(current.max);
 
-  const csvType = norm(p.type);
-  const uiTier = tierFromCsv(p.tier);
+    // Value View mode drives both baseline value and auto-tiering
+  const mode = getValueMode();
+
+  const csvType = normType(p.type);
+  const uiTier = getTierForPlayer(p, mode);
 
   // Primary value used across the Auction Board:
-  // - auction_value_26 if present
-  // - otherwise fallback to auction_price_25_imputed (when available)
-  const mode = getValueMode();
+  // - Proj Anchor (pure projection)
+  // - Market Estimate (projection + flags)
   const vProj = getBaseVal26(p);
   const vMkt = getMarketEstimate(p);
   const v = getBaselineVal(p, mode);
-  const m = vMkt;
 
   const patch = {};
 
@@ -664,7 +681,7 @@ function applyCsvAutofill(targetId, typedName) {
   if (uiTier) patch.tier = uiTier;
 
   if (v > 0 && curPlan === 0) patch.plan = v;
-  if (!curMax && (s || v)) patch.max = s || v;
+    if (!curMax && v > 0) patch.max = v;
 
   // Persist stable key + pricing fields for the Dashboard.
   patch.player_key = String(p?.player_key || getPlayerKey({ type: (patch.type || csvType || current.type || "unk"), Name: typedName }) || "");
@@ -762,7 +779,10 @@ const baseVal = getBaselineVal(p, mode);
 /* ---------------------------- sorting + filters --------------------------- */
 
 function sortTargets(list, sortKey) {
-  const tierRank = (t) => (t === "A" ? 0 : t === "B" ? 1 : 2);
+  const tierRank = (t) => {
+  const x = normalizeTier(t) || "F";
+  return x === "S" ? 0 : x === "A" ? 1 : x === "B" ? 2 : x === "C" ? 3 : x === "D" ? 4 : 5;
+};
   const arr = [...list];
 
   switch (sortKey) {
@@ -815,7 +835,12 @@ function applyFilters(list) {
   let out = [...list];
 
   if (fType !== "all") out = out.filter((t) => typeLabel(t.type) === fType);
-  if (fTier !== "all") out = out.filter((t) => (t.tier ?? "B") === fTier);
+  if (fTier !== "all") out = out.filter((t) => {
+  const p = lookupPlayerByName(t.name);
+  const auto = p ? getTierForPlayer(p, getValueMode()) : "";
+  const cur = normalizeTier(t.tier) || auto || "F";
+  return cur === fTier;
+});
 
   return sortTargets(out, fSort);
 }
@@ -826,33 +851,36 @@ function renderTierSummary(allTargets) {
   const el = document.getElementById("tierSummary");
   if (!el) return;
 
-  const tiers = ["A", "B", "C"];
+  const tiers = ["S", "A", "B", "C", "D", "F"];
   const byTier = {};
   for (const t of tiers) byTier[t] = { count: 0, hit: 0, pit: 0, plan: 0, max: 0, adj: 0 };
 
   for (const t of allTargets) {
-    const tier = t.tier ?? "B";
-    if (!byTier[tier]) continue;
+  const p = lookupPlayerByName(t.name ?? "");
 
-    byTier[tier].count += 1;
+  // Tier = manual override if valid, otherwise computed from current Value View
+  const autoTier = p ? getTierForPlayer(p, getValueMode()) : "";
+  const tier = normalizeTier(t.tier) || autoTier || "F";
+  if (!byTier[tier]) continue;
 
-    const typ = typeLabel(t.type);
-    if (typ === "hit") byTier[tier].hit += 1;
-    else byTier[tier].pit += 1;
+  byTier[tier].count += 1;
 
-    const plan = num(t.plan);
-    const maxv = num(t.max);
+  const typ = typeLabel(t.type);
+  if (typ === "hit") byTier[tier].hit += 1;
+  else byTier[tier].pit += 1;
 
-    const p = lookupPlayerByName(t.name ?? "");
-    const weights = getStrategyWeights();
-    const pricing = computeTargetPricing(t, p, weights, strategyOptions());
+  const plan = num(t.plan);
+  const maxv = num(t.max);
 
-    const adjv = Number.isFinite(pricing.adjRaw) ? pricing.adjRaw : 0;
+  const weights = getStrategyWeights();
+  const pricing = computeTargetPricing(t, p, weights, strategyOptions());
 
-    if (plan > 0) byTier[tier].plan += plan;
-    if (maxv > 0) byTier[tier].max += maxv;
-    if (adjv > 0) byTier[tier].adj += adjv;
-  }
+  const adjv = Number.isFinite(pricing.adjRaw) ? pricing.adjRaw : 0;
+
+  if (plan > 0) byTier[tier].plan += plan;
+  if (maxv > 0) byTier[tier].max += maxv;
+  if (adjv > 0) byTier[tier].adj += adjv;
+}
 
   const total = { count: 0, hit: 0, pit: 0, plan: 0, max: 0, adj: 0 };
   for (const k of tiers) {
@@ -894,9 +922,12 @@ function renderTierSummary(allTargets) {
   }
 
   el.innerHTML = `
+    ${row("S", byTier.S)}
     ${row("A", byTier.A)}
     ${row("B", byTier.B)}
     ${row("C", byTier.C)}
+    ${row("D", byTier.D)}
+    ${row("F", byTier.F)}
     <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; margin-top:6px;">
       <div style="min-width:50px;"><strong>Total</strong></div>
       <div style="flex:1; text-align:right; opacity:.9;">
@@ -1128,11 +1159,16 @@ function render() {
       const td = document.createElement("td");
       const sel = document.createElement("select");
       sel.innerHTML = `
+        <option value="S">S</option>
         <option value="A">A</option>
         <option value="B">B</option>
         <option value="C">C</option>
+        <option value="D">D</option>
+        <option value="F">F</option>
       `;
-      sel.value = t.tier ?? "B";
+      const rowPlayer = lookupPlayerByName(t.name ?? "");
+const autoTier = rowPlayer ? getTierForPlayer(rowPlayer, getValueMode()) : "";
+sel.value = normalizeTier(t.tier) || autoTier || "F";
       sel.addEventListener("change", () => {
         updateAuctionTarget(t.id, { tier: sel.value });
         render();
@@ -1504,7 +1540,7 @@ function buildTargetFromPlayer(p) {
   const name = String(p?.Name ?? p?.player ?? p?.name ?? "").trim();
 
   let type = normType(p?.type);
-  const tier = tierFromCsv(p?.tier) || "B";
+  const tier = getTierForPlayer(p, getValueMode());
 
   const statsRow = lookupStatsByName(name);
   const statsPOS = String(statsRow?.POS ?? "").trim();
@@ -1650,20 +1686,36 @@ async function init() {
   render();
 
   document.getElementById("btnPickAdd")?.addEventListener("click", () => {
-    const input = document.getElementById("pickQuery");
-    const typed = String(input?.value ?? "").trim();
-    const p = PICK_SELECTED_PLAYER || lookupPlayerByName(typed);
-    if (!p) return;
+  const input = document.getElementById("pickQuery");
+  const typed = String(input?.value ?? "").trim();
+  const p = PICK_SELECTED_PLAYER || lookupPlayerByName(typed);
+  if (!p) return;
 
-    const t = buildTargetFromPlayer(p);
-    const created = addAuctionTarget(t);
-    if (created?.id) applyCsvAutofill(created.id, created.name);
+  const t = buildTargetFromPlayer(p);
+  const created = addAuctionTarget(t);
+  if (created?.id) applyCsvAutofill(created.id, created.name);
 
-    if (input) input.value = "";
-    setPickSelected(null);
-    renderPickResults("");
-    render();
-  });
+  // ✅ Ensure the newly-added player isn't instantly hidden by current filters
+  const fType = document.getElementById("fType");
+  const fTier = document.getElementById("fTier");
+
+  // If user is filtering Hitters/Pitchers and the added player doesn't match, reset to All
+  const createdType = String(created?.type ?? t.type ?? "").trim().toLowerCase(); // "hit" | "pit"
+  if (fType && fType.value !== "all" && createdType && fType.value !== createdType) {
+    fType.value = "all";
+  }
+
+  // If user is filtering by a specific tier and the added player doesn't match, reset to All
+  const createdTier = normalizeTier(created?.tier ?? t.tier) || "";
+  if (fTier && fTier.value !== "all" && createdTier && fTier.value !== createdTier) {
+    fTier.value = "all";
+  }
+
+  if (input) input.value = "";
+  setPickSelected(null);
+  renderPickResults("");
+  render();
+});
 
   document.getElementById("btnClearTargets")?.addEventListener("click", () => {
     clearAuctionTargets();
