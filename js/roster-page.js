@@ -8,7 +8,7 @@ import {
 } from "./storage.js";
 import { getPlayerKey, normalizeName } from "./player-key.js";
 import { hydrateHeader } from "./nav.js";
-import { mountRosterMiniRecommended } from "./recommended-targets.js";
+import { renderTeamCoverage } from "./team-coverage.js";
 
 // ✅ Update this if your CSV filename differs
 const CSV_PATH = "./data/master.csv";
@@ -643,13 +643,12 @@ async function init() {
     // Lineup planner (starting slots / benches / minors)
     renderPlanner(roster);
 
-    // Mini recommended targets panel
-    try {
-      const mode = String(getSettings()?.value_mode ?? "proj");
-      mountRosterMiniRecommended({ players: pool, valueMode: mode });
-    } catch (e) {
-      console.warn("[roster] mini recommended targets failed", e);
-    }
+    // Team Category Coverage (Z-Sum) panel
+try {
+  renderTeamCoverage({ roster, players: pool });
+} catch (e) {
+  console.warn("[roster] team coverage failed", e);
+}
   }
 
   addSearch?.addEventListener("input", refreshUI);

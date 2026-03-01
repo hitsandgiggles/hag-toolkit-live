@@ -2123,3 +2123,115 @@ table thead th{
 @media (max-width: 980px){
   .abRowMid.dualPanels > .panel{ min-width: 100%; }
 }
+/* ================================
+   Team Category Coverage (Z-Sum)
+   ================================ */
+
+.tc-wrap { display:flex; flex-direction:column; gap:8px; }
+.tc-section-title { font-size: 13px; opacity: 0.75; letter-spacing: 0.2px; }
+
+.tc-list { display:flex; flex-direction:column; gap:10px; }
+
+.tc-row {
+  display:grid;
+  grid-template-columns: 58px 1fr 72px 86px;
+  gap: 10px;
+  align-items:center;
+}
+
+.tc-label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.tc-value {
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  opacity: 0.9;
+}
+.tc-badge{
+  justify-self:end;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(0,0,0,0.03);
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.tc-badge.strong {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: rgb(21, 128, 61);
+}
+
+.tc-badge.average {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: rgb(146, 64, 14);
+}
+
+.tc-badge.weak {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: rgb(153, 27, 27);
+}
+
+.tc-bar {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.035);
+  overflow: hidden;
+}
+
+.tc-midline {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(0,0,0,0.12);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+.tc-fill {
+  position:absolute;
+  top:0;
+  height:100%;
+  border-radius:999px;
+  background: rgba(0,0,0,0.18);
+}
+
+.tc-fill.pos { left: 50%; }
+.tc-fill.neg { right: 50%; }
+
+.tc-tooltip {
+  position: fixed;
+  z-index: 999999;
+  max-width: 360px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.10);
+  font-size: 12px;
+  line-height: 1.35;
+  display: none;
+  pointer-events: none;
+}
+
+.tc-tooltip .tt-title { font-weight: 600; margin-bottom: 6px; }
+.tc-tooltip .tt-sub { opacity: 0.8; margin-bottom: 8px; }
+
+.tc-tooltip .tt-item {
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.tc-tooltip .tt-item .nm { opacity: 0.9; }
+.tc-tooltip .tt-item .val { font-variant-numeric: tabular-nums; opacity: 0.9; }

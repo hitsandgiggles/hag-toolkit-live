@@ -110,14 +110,23 @@
           </div>
         </section>
 
-        <!-- Recommended Targets (mini) -->
-        <section class="panel" style="margin-top:14px;">
-          <strong>Recommended Targets (Quick)</strong>
-          <div class="small" style="margin-top:6px; opacity:.8;">
-            Strategy-weighted suggestions that prioritize your currently empty starting slots.
-          </div>
-          <div id="rosterRecMini" style="margin-top:10px;"></div>
-        </section>
+        <!-- Team Category Coverage (Z-Sum) -->
+<section class="panel" style="margin-top:14px;" id="teamCoveragePanel">
+  <strong>Team Category Coverage (Z-Sum)</strong>
+  <div class="small" style="margin-top:6px; opacity:.8;">
+    Raw summed z-scores from players currently on your roster. Negatives included. Updates live.
+  </div>
+
+  <div class="tc-wrap" style="margin-top:12px;">
+    <div class="tc-section-title">Hitting</div>
+    <div id="tcHitting" class="tc-list"></div>
+
+    <div class="tc-section-title" style="margin-top:12px;">Pitching</div>
+    <div id="tcPitching" class="tc-list"></div>
+  </div>
+
+  <div id="tcTooltip" class="tc-tooltip" aria-hidden="true"></div>
+</section>
 
         <!-- Your roster -->
         <section class="panel" style="margin-top:14px;">
