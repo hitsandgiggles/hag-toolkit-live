@@ -591,14 +591,6 @@ function getAnchorVal(p) {
 
 // "Shadow" pricing: a secondary reference price (usually 2025 actual/imputed)
 // used to auto-fill Hard Max and show context on targets.
-function getShadowVal(p) {
-  // Prefer explicit imputed column; fallback to actual 2025 auction price.
-  const imp = num(p?.auction_price_25_imputed, null);
-  if (imp != null) return Math.max(0, imp);
-  const a25 = num(p?.auction_price_25, 0);
-  return Math.max(0, a25);
-}
-
 
 function posLabel(p) {
   const pos = String(p.POS ?? p.Pos ?? p.pos ?? "").trim();
@@ -651,7 +643,6 @@ function applyCsvAutofill(targetId, typedName) {
   const vProj = getBaseVal26(p);
   const vMkt = getMarketEstimate(p);
   const v = getBaselineVal(p, mode);
-  const s = getShadowVal(p);
   const m = vMkt;
 
   const patch = {};
@@ -678,7 +669,7 @@ function applyCsvAutofill(targetId, typedName) {
   // Persist stable key + pricing fields for the Dashboard.
   patch.player_key = String(p?.player_key || getPlayerKey({ type: (patch.type || csvType || current.type || "unk"), Name: typedName }) || "");
   patch.val = Math.round(v || 0);
-  patch.shadow = Math.round(s || 0);
+  patch.shadow = 0;
 
   // Compute Adj/Δ using the same logic as the Auction Board.
   try {
@@ -697,9 +688,8 @@ function applyCsvAutofill(targetId, typedName) {
 
   const bits = [];
   if (vProj > 0) bits.push(`Proj ${money(vProj)}`);
-  if (vMkt != null && Number(vMkt) > 0) bits.push(`Mkt ${money(vMkt)}`);
-  if (v > 0) bits.push(`Val ${money(v)}`);
-  if (s > 0) bits.push(`Shad ${money(s)}`);
+  if (vMkt != null) bits.push(`Mkt ${money(vMkt)}`);
+  if (v != null) bits.push(`Val ${money(v)}`);
 
   const draftable = String(p.draftable ?? "").trim();
   if (draftable) bits.push(`Draftable ${draftable}`);
@@ -749,16 +739,16 @@ function getModelChips(p) {
   }
 
   const mode = getValueMode();
-  const baseVal = getBaselineVal(p, mode);
+const baseVal = getBaselineVal(p, mode);
   const projVal = getBaseVal26(p);
   const mktVal = getMarketEstimate(p);
-  const shadVal = getShadowVal(p);
-  if (baseVal > 0) {
-  const shown = applyStrategyValue(baseVal);
-  push(`${money(shown)}`);
-}
-  if (mktVal != null && Number(mktVal) > 0) push(`Mkt ${money(mktVal)}`);
-  if (shadVal > 0) push(`Shad ${money(shadVal)}`);
+
+  if (baseVal != null) {
+    const shown = applyStrategyValue(baseVal);
+    push(`${money(shown)}`);
+  }
+
+  if (mktVal != null) push(`Mkt ${money(mktVal)}`);
 
   const draftable = String(p.draftable ?? "").trim();
   if (draftable) push(`Draftable ${draftable}`);
@@ -1528,18 +1518,17 @@ function buildTargetFromPlayer(p) {
   }
 
   const baseVal = getBaseVal26(p);
-  const shadow = getShadowVal(p);
+const shadow = 0; // keep key alive for computeTargetPricing, but kill Shad concept
 
+const weights = getStrategyWeights();
+const opts = strategyOptions();
 
-  const weights = getStrategyWeights();
-  const opts = strategyOptions();
-
-  const pricing = computeTargetPricing(
-    { plan: baseVal, max: (shadow || 0) },
-    p,
-    weights,
-    opts
-  );
+const pricing = computeTargetPricing(
+  { plan: baseVal, max: shadow },
+  p,
+  weights,
+  opts
+);
 
   const plan = baseVal;
 
@@ -1549,8 +1538,7 @@ function buildTargetFromPlayer(p) {
 );
 
   const bits = [];
-  if (baseVal > 0) bits.push(`${money(baseVal)}`);
-  if (shadow > 0) bits.push(`Shad ${money(shadow)}`);
+  if (baseVal != null) bits.push(`${money(baseVal)}`);
   const flags = String(p?.flags ?? "").trim();
   if (flags) bits.push(`Flags: ${flags}`);
 
