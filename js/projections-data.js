@@ -192,8 +192,13 @@ export async function loadPlayers() {
     obj.type = String(obj.type ?? obj.Type ?? '').trim().toLowerCase();
     // Use Display Role as POS if present (your master uses this as canonical)
     obj.POS = String(obj.POS ?? obj.pos ?? obj['POS(2026)'] ?? obj['POS'] ?? obj['Display Role'] ?? obj['DisplayRole'] ?? '').trim();
+    obj.POS = obj.POS.replace(/starer/ig, "SP");
     obj.Team = String(obj.Team ?? obj.team ?? obj.Tm ?? obj.tm ?? '').trim();
-
+    // Projections Page: unified "Proj" column (used for Rank + sorting by Proj header)
+    obj.ProjVal =
+    obj.ProjVal !== undefined && obj.ProjVal !== ""
+    ? obj.ProjVal
+    : (obj["Proj Anchor"] ?? obj["ProjAnchor"] ?? obj["Market Estimate"] ?? "");
     normalizeType(obj);
     normalizeStats(obj);
 

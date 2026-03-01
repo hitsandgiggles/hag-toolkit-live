@@ -1,203 +1,322 @@
-// js/projections-page.js
+// projections-page.js
+
 import { loadPlayers } from "./projections-data.js";
 import { normalizeName } from "./player-key.js";
+
+let ALL = [];
+let currentSort = "rank";
+
+// Final position list + required order (user spec)
+const POS_ORDER = ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF","SP","RP","CP"];
+
+// Columns considered "hitting" vs "pitching" for hide/show by Type
+const hitCols = ["AVG","OPS","TB","HR","R","RBI","SB"];
+const pitCols = ["ERA","WHIP","IP","QS","K","SV","HLD"];
+
 function normalize(s) {
-  return normalizeName(s);
+  return normalizeName(s ?? "");
 }
 
-function playerName(p) {
-  return normalize(
-    p.Name ?? p.name ?? p.player ?? p.Player ?? ""
-  );
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
-const td = (v) => {
-  const cell = document.createElement("td");
-  cell.textContent = v;
-  return cell;
-};
-
-function renderHitters(rows) {
-  const hitTbody = document.getElementById("hitTbody");
-  if (!hitTbody) return;
-
-  hitTbody.innerHTML = "";
-  for (const p of rows) {
-    const tr = document.createElement("tr");
-    tr.appendChild(td(p.Name));
-    tr.appendChild(td(p.Team));
-    tr.appendChild(td(p.POS));
-    tr.appendChild(td(p.PA));
-    tr.appendChild(td(p.AVG));
-    tr.appendChild(td(p.OPS));
-    tr.appendChild(td(p.TB));
-    tr.appendChild(td(p.HR));
-    tr.appendChild(td(p.RBI));
-    tr.appendChild(td(p.R));
-    tr.appendChild(td(p.SB));
-    hitTbody.appendChild(tr);
-  }
+// ✅ IMPORTANT: Treat "" as NOT present
+function isHitter(p) {
+  return num(p.PA) > 0;
+}
+function isPitcher(p) {
+  return num(p.IP) > 0;
 }
 
-
-function renderPitchers(rows) {
-  const pitTbody = document.getElementById("pitTbody");
-  if (!pitTbody) return;
-
-  pitTbody.innerHTML = "";
-
-  if (!rows.length) {
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 10;
-    td.className = "small";
-    td.style.padding = "12px";
-    td.textContent = "No results.";
-    tr.appendChild(td);
-    pitTbody.appendChild(tr);
-    return;
-  }
-
-  for (const p of rows) {
-    const tr = document.createElement("tr");
-
-    const cells = [
-      p.Name,
-      p.Team,
-      p.POS,
-      p.ERA,
-      p.WHIP,
-      p.IP,
-      p.QS,
-      p.K,
-      p.SV,
-      p.HLD,
-    ];
-
-    for (const val of cells) {
-      const td = document.createElement("td");
-      td.textContent = val ?? "";
-      tr.appendChild(td);
-    }
-
-    pitTbody.appendChild(tr);
-  }
+function getProjValue(p) {
+  return num(p.ProjVal ?? p["Proj Anchor"] ?? 0);
 }
 
-function sortByStat(players, stat, asc = false) {
-  return [...players].sort((a, b) => {
-    if (stat === "name") {
-      return normalize(a.Name).localeCompare(normalize(b.Name));
-    }
+/**
+ * Canonical position set per player:
+ * - Fixes: P, starer -> SP, keeps RP/CP, adds CI/MI, adds OF
+ * - Returns a Set of positions for filtering + display logic
+ */
+function getPosSet(p) {
+  const raw = String(p.POS ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
 
-    const av = Number(a[stat]);
-    const bv = Number(b[stat]);
+  const out = new Set();
 
-    if (Number.isNaN(av)) return 1;
-    if (Number.isNaN(bv)) return -1;
+  // Normalize tokens
+  raw.forEach(tok => {
+    const t = tok.toUpperCase();
 
-    return asc ? av - bv : bv - av;
+    if (t === "STARER") out.add("SP");              // typo in your data
+    else if (t === "P") out.add("RP");              // collapse generic P into RP
+    else if (t === "SP" || t === "RP" || t === "CP") out.add(t);
+    else if (["C","1B","2B","3B","SS","LF","CF","RF","OF"].includes(t)) out.add(t);
   });
+
+  // Derive OF if any OF sub-positions exist
+  if (out.has("LF") || out.has("CF") || out.has("RF")) out.add("OF");
+
+  // Derive CI/MI
+  if (out.has("1B") || out.has("3B")) out.add("CI");
+  if (out.has("2B") || out.has("SS")) out.add("MI");
+
+  // If pitcher, ensure we have SP/RP/CP only
+  if (isPitcher(p)) {
+    // If data gave neither, default to RP
+    if (!out.has("SP") && !out.has("RP") && !out.has("CP")) out.add("RP");
+    // Remove hitter positions if any junk leaked in
+    ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF"].forEach(x => out.delete(x));
+  }
+
+  return out;
+}
+
+function applyFilters(players) {
+  const type = document.getElementById("projType").value;
+  const pos = document.getElementById("projPos").value;
+  const eligible = document.getElementById("eligOnly").checked;
+  const search = normalize(document.getElementById("playerSearch").value);
+
+  let result = [...players];
+
+  // ✅ HARD GATE by type: now actually removes players
+  if (type === "hit") result = result.filter(isHitter);
+  if (type === "pit") result = result.filter(isPitcher);
+
+  // Position filter (canonical)
+  if (pos !== "all") {
+    result = result.filter(p => getPosSet(p).has(pos));
+  }
+
+  // Eligible toggle (apply before cap)
+  if (eligible) {
+    result = result.filter(p =>
+      isHitter(p) ? num(p.PA) >= 250 :
+      isPitcher(p) ? num(p.IP) >= 35 :
+      true
+    );
+  }
+
+  // Search (name/team)
+  if (search) {
+    result = result.filter(p =>
+      normalize(p.Name).includes(search) ||
+      normalize(p.Team).includes(search)
+    );
+  }
+
+  return result;
+}
+
+// Fixed sort direction rules:
+// - Name/Team/POS ascending
+// - ERA/WHIP ascending (lower is better)
+// - Everything else descending
+function sortDir(key) {
+  if (["Name","Team","POS"].includes(key)) return +1;
+  if (["ERA","WHIP"].includes(key)) return +1;
+  return -1;
+}
+
+function sortPlayers(players) {
+  const dir = sortDir(currentSort);
+
+  return [...players].sort((a, b) => {
+    // Rank means Proj value desc
+    if (currentSort === "rank") {
+      return getProjValue(b) - getProjValue(a);
+    }
+
+    // String sorts
+    if (currentSort === "Name") return dir * normalize(a.Name).localeCompare(normalize(b.Name));
+    if (currentSort === "Team") return dir * (String(a.Team ?? "")).localeCompare(String(b.Team ?? ""));
+    if (currentSort === "POS")  return dir * (String(a.POS ?? "")).localeCompare(String(b.POS ?? ""));
+
+    // Numeric sorts (missing treated as 0; for ERA/WHIP missing becomes 0 -> bubbles top; we fix below)
+    let av = num(a[currentSort]);
+    let bv = num(b[currentSort]);
+
+    // For ERA/WHIP specifically: missing should sort LAST, not first.
+    if (["ERA","WHIP"].includes(currentSort)) {
+      const aMissing = !(Number(a[currentSort]) > 0);
+      const bMissing = !(Number(b[currentSort]) > 0);
+      if (aMissing && !bMissing) return +1;
+      if (!aMissing && bMissing) return -1;
+    }
+
+    return dir * (av - bv);
+  });
+}
+
+function assignProjRank(filteredPool) {
+  // Rank within the filtered pool by ProjVal descending
+  const byProj = [...filteredPool].sort((a, b) => getProjValue(b) - getProjValue(a));
+  byProj.forEach((p, i) => (p._projRank = i + 1));
+}
+
+function applyCap(players) {
+  const cap = document.getElementById("projShow").value;
+  if (cap === "all") return players;
+  return players.slice(0, Number(cap));
+}
+
+// Weighted “totals” for ratio stats:
+// AVG = sum(AVG * PA) / sum(PA)
+// ERA/WHIP = sum(stat * IP) / sum(IP)
+function weightedAvg(arr, statKey, weightKey) {
+  const wSum = arr.reduce((t, p) => t + num(p[weightKey]), 0);
+  if (wSum <= 0) return 0;
+  const vSum = arr.reduce((t, p) => t + (num(p[statKey]) * num(p[weightKey])), 0);
+  return vSum / wSum;
+}
+
+function updateTotals(filteredPool) {
+  const type = document.getElementById("projType").value;
+
+  const hitters = filteredPool.filter(isHitter);
+  const pitchers = filteredPool.filter(isPitcher);
+
+  const sum = (arr, key) => arr.reduce((t, p) => t + num(p[key]), 0);
+
+  const hitPA = sum(hitters, "PA");
+
+  const avgW = weightedAvg(hitters, "AVG", "PA");
+  const eraW = weightedAvg(pitchers, "ERA", "IP");
+  const whipW = weightedAvg(pitchers, "WHIP", "IP");
+
+  document.getElementById("hitTotals").textContent =
+    `PA: ${Math.round(hitPA)} • AVG: ${avgW ? avgW.toFixed(3) : "—"} • OPS: ${weightedAvg(hitters,"OPS","PA") ? weightedAvg(hitters,"OPS","PA").toFixed(3) : "—"} • TB: ${Math.round(sum(hitters,"TB"))} • HR: ${Math.round(sum(hitters,"HR"))} • RBI: ${Math.round(sum(hitters,"RBI"))} • R: ${Math.round(sum(hitters,"R"))} • SB: ${Math.round(sum(hitters,"SB"))}`;
+
+  document.getElementById("pitTotals").textContent =
+    `IP: ${sum(pitchers,"IP").toFixed(1)} • ERA: ${eraW ? eraW.toFixed(2) : "—"} • WHIP: ${whipW ? whipW.toFixed(2) : "—"} • QS: ${Math.round(sum(pitchers,"QS"))} • K: ${Math.round(sum(pitchers,"K"))} • SV: ${Math.round(sum(pitchers,"SV"))} • HLD: ${Math.round(sum(pitchers,"HLD"))}`;
+
+  // Hide/show totals boxes depending on type
+  const hitBox = document.getElementById("hitTotals").parentElement;
+  const pitBox = document.getElementById("pitTotals").parentElement;
+
+  if (type === "hit") {
+    hitBox.style.display = "";
+    pitBox.style.display = "none";
+  } else if (type === "pit") {
+    hitBox.style.display = "none";
+    pitBox.style.display = "";
+  } else {
+    hitBox.style.display = "";
+    pitBox.style.display = "";
+  }
+}
+
+function updateColumnVisibility() {
+  const type = document.getElementById("projType").value;
+  const headers = document.querySelectorAll("#projTable th");
+
+  headers.forEach((th, index) => {
+    const key = th.dataset.sort;
+    if (!key) return;
+
+    const hide =
+      (type === "hit" && pitCols.includes(key)) ||
+      (type === "pit" && hitCols.includes(key));
+
+    th.style.display = hide ? "none" : "";
+
+    document
+      .querySelectorAll(`#projTable tr td:nth-child(${index + 1})`)
+      .forEach(td => (td.style.display = hide ? "none" : ""));
+  });
+}
+
+function render(players) {
+  const tbody = document.getElementById("projTbody");
+  tbody.innerHTML = "";
+
+  players.forEach(p => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${p._projRank ?? ""}</td>
+      <td>${p.Name}</td>
+      <td>${p.Team ?? ""}</td>
+      <td>${p.POS ?? ""}</td>
+
+      <td>${num(p.AVG) ? num(p.AVG).toFixed(3) : 0}</td>
+      <td>${num(p.OPS) ? num(p.OPS).toFixed(3) : 0}</td>
+      <td>${Math.round(num(p.TB))}</td>
+      <td>${Math.round(num(p.HR))}</td>
+      <td>${Math.round(num(p.R))}</td>
+      <td>${Math.round(num(p.RBI))}</td>
+      <td>${Math.round(num(p.SB))}</td>
+
+      <td>${num(p.ERA) ? num(p.ERA).toFixed(2) : 0}</td>
+      <td>${num(p.WHIP) ? num(p.WHIP).toFixed(2) : 0}</td>
+      <td>${num(p.IP) ? num(p.IP).toFixed(1) : 0}</td>
+      <td>${Math.round(num(p.QS))}</td>
+      <td>${Math.round(num(p.K))}</td>
+      <td>${Math.round(num(p.SV))}</td>
+      <td>${Math.round(num(p.HLD))}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+function rebuild() {
+  // 1) Filter
+  const filtered = applyFilters(ALL);
+
+  // 2) Compute proj-rank within the filtered pool (so ranks make sense)
+  assignProjRank(filtered);
+
+  // 3) Sort for display
+  const sorted = sortPlayers(filtered);
+
+  // 4) Cap for display
+  const capped = applyCap(sorted);
+
+  // ✅ Totals should match what’s displayed (post-cap)
+  updateTotals(capped);
+
+  // 5) Render
+  render(capped);
+
+  // 6) Hide irrelevant columns based on Type
+  updateColumnVisibility();
 }
 
 async function init() {
   const { hitters, pitchers } = await loadPlayers();
+  ALL = [...hitters, ...pitchers];
 
-  // DOM
-  const playerSearch = document.getElementById("playerSearch");
-  const searchMeta = document.getElementById("searchMeta");
-
-  const projType = document.getElementById("projType");
-  const projSort = document.getElementById("projSort");
-  const btnApplyProj = document.getElementById("btnApplyProj");
-  const btnResetProj = document.getElementById("btnResetProj");
-  const projStatus = document.getElementById("projStatus");
-
-  const hitSection = document.getElementById("hitSection");
-  const pitSection = document.getElementById("pitSection");
-
-  // ✅ Eligibility checkbox
-  const eligOnly = document.getElementById("eligOnly");
-
-  function applyFilters() {
-    const q = normalize(playerSearch?.value);
-    const type = projType?.value ?? "all";
-    const sort = projSort?.value ?? "name";
-
-    // --- SEARCH ---
-    let hit = q ? hitters.filter(p => playerName(p).includes(q)) : [...hitters];
-let pit = q ? pitchers.filter(p => playerName(p).includes(q)) : [...pitchers];
-
-    // ✅ ELIGIBILITY (Hitters ≥ 250 PA, Pitchers ≥ 35 IP)
-    const eligible = eligOnly?.checked ?? true;
-    if (eligible) {
-      hit = hit.filter(p => Number(p.PA) >= 250);
-      pit = pit.filter(p => Number(p.IP) >= 35);
-    }
-
-    // --- SORT ---
-    if (sort !== "name") {
-      const asc = sort === "era" || sort === "whip";
-      hit = sortByStat(hit, sort.toUpperCase(), asc);
-      pit = sortByStat(pit, sort.toUpperCase(), asc);
-    } else {
-      hit = sortByStat(hit, "name");
-      pit = sortByStat(pit, "name");
-    }
-
-    // --- TYPE + RENDER ---
-    if (type === "hit") {
-      if (hitSection) hitSection.style.display = "";
-      if (pitSection) pitSection.style.display = "none";
-      renderHitters(hit);
-    } else if (type === "pit") {
-      if (hitSection) hitSection.style.display = "none";
-      if (pitSection) pitSection.style.display = "";
-      renderPitchers(pit);
-    } else {
-      if (hitSection) hitSection.style.display = "";
-      if (pitSection) pitSection.style.display = "";
-      renderHitters(hit);
-      renderPitchers(pit);
-    }
-
-    // meta text
-    if (searchMeta) {
-      if (!q) {
-        searchMeta.textContent =
-          `Showing all players (Hitters: ${hitters.length}, Pitchers: ${pitchers.length})`;
-      } else {
-        searchMeta.textContent =
-          `Matches for "${playerSearch.value}" (Hitters: ${hit.length}, Pitchers: ${pit.length})`;
-      }
-    }
-
-    if (projStatus) {
-      projStatus.textContent =
-        `Type: ${type.toUpperCase()} • Sort: ${sort.toUpperCase()} • ${eligible ? "ELIGIBLE" : "ALL"}`;
-    }
-  }
-
-  // Listeners (add ONCE)
-  btnApplyProj?.addEventListener("click", applyFilters);
-
-  btnResetProj?.addEventListener("click", () => {
-    if (projType) projType.value = "all";
-    if (projSort) projSort.value = "name";
-    if (playerSearch) playerSearch.value = "";
-    if (eligOnly) eligOnly.checked = true; // ✅ restore default
-    applyFilters();
+  // Populate Position dropdown in your REQUIRED order (not dynamic garbage)
+  const posSelect = document.getElementById("projPos");
+  posSelect.innerHTML = `<option value="all">All</option>`;
+  POS_ORDER.forEach(pos => {
+    const opt = document.createElement("option");
+    opt.value = pos;
+    opt.textContent = pos;
+    posSelect.appendChild(opt);
   });
 
-  playerSearch?.addEventListener("input", applyFilters);
-  projType?.addEventListener("change", applyFilters);
-  projSort?.addEventListener("change", applyFilters);
-  eligOnly?.addEventListener("change", applyFilters); // ✅ checkbox live
+  // Header click sorting
+  document.querySelectorAll("#projTable th").forEach(th => {
+    th.addEventListener("click", () => {
+      currentSort = th.dataset.sort;
+      rebuild();
+    });
+  });
 
-  // Initial render
-  applyFilters();
+  // Controls
+  ["projType","projPos","eligOnly","playerSearch","projShow"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("change", rebuild);
+    el.addEventListener("input", rebuild);
+  });
+
+  rebuild();
 }
 
-init().catch((err) => {
-  console.error("Projections page init failed:", err);
-});
+init();

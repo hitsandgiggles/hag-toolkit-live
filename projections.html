@@ -8,203 +8,154 @@
   </head>
 
   <body>
-
     <div class="appShell">
       <aside class="sidebar">
-  <a class="homeBtn" href="index.html" aria-label="Home">
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 10.5L12 3l9 7.5"/>
-      <path d="M5 9.5V21h14V9.5"/>
-      <path d="M9.5 21v-7h5v7"/>
-    </svg>
-  </a>
+        <a class="homeBtn" href="index.html" aria-label="Home">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10.5L12 3l9 7.5" />
+            <path d="M5 9.5V21h14V9.5" />
+            <path d="M9.5 21v-7h5v7" />
+          </svg>
+        </a>
 
-  <nav class="sideNav">
-    <a href="auction.html" data-tab="auction.html">Auction Board</a>
-    <a href="strategy.html" data-tab="strategy.html">Strategy</a>
-    <a href="roster.html" data-tab="roster.html">Roster</a>
-    <a href="projections.html" data-tab="projections.html">Projections</a>
-    <a href="methodology.html" data-tab="methodology.html">Methodology</a>
-  </nav>
+        <nav class="sideNav">
+          <a href="auction.html" data-tab="auction.html">Auction Board</a>
+          <a href="strategy.html" data-tab="strategy.html">Strategy</a>
+          <a href="roster.html" data-tab="roster.html">Roster</a>
+          <a href="projections.html" data-tab="projections.html">Projections</a>
+          <a href="methodology.html" data-tab="methodology.html">Methodology</a>
+        </nav>
 
-  <div class="sideStatus">
-    <div class="sideStatusItem" id="hdrBudget">Budget: —</div>
-    <div class="sideStatusItem" id="hdrSlots">Slots: —</div>
-  </div>
-</aside>
+        <div class="sideStatus">
+          <div class="sideStatusItem" id="hdrBudget">Budget: —</div>
+          <div class="sideStatusItem" id="hdrSlots">Slots: —</div>
+        </div>
+      </aside>
 
       <div class="content">
+        <main class="wrap wide">
+          <!-- TOP CONTROLS / SUMMARY -->
+          <section class="card">
+            <h1>Projections</h1>
 
-<main class="wrap wide">
-      <!-- TOP CONTROLS / SUMMARY (boxed like before) -->
-      <section class="card">
-        <h1>Projections</h1>
-        <!-- Search -->
-        <label class="small" for="playerSearch" style="display:block; margin-top:12px;">
-          Search players
-        </label>
-
-        <input
-          id="playerSearch"
-          type="text"
-          placeholder="Search name… (e.g., Soto, Ohtani)"
-          style="width:100%; padding:10px; border-radius:10px;"
-        />
-
-        <div id="searchMeta" class="small" style="margin-top:8px; opacity:.7;"></div>
-
-        <!-- Totals (Count stats only: no ratio math yet) -->
-        <section class="grid" style="margin-top: 12px;">
-          <div class="panel half">
-            <strong>Hitting Totals </strong>
-            <div class="small" id="hitTotals">
-              PA: — • TB: — • HR: — • RBI: — • R: — • SB: —
-            </div>
-          </div>
-
-          <div class="panel half">
-            <strong>Pitching Totals </strong>
-            <div class="small" id="pitTotals">
-              IP: — • QS: — • K: — • SV: — • HLD: —
-            </div>
-          </div>
-        </section>
-
-        <!-- Filters -->
-        <section class="panel" style="margin-top: 14px;">
-          <strong>Filters</strong>
-
-          <div class="grid" style="margin-top: 10px;">
-            <label class="panel half">
-              <div class="small">Type</div>
-              <select id="projType">
-                <option value="all">All</option>
-                <option value="hit">Hitters</option>
-                <option value="pit">Pitchers</option>
-              </select>
+            <!-- Search -->
+            <label class="small" for="playerSearch" style="display:block; margin-top:12px;">
+              Search players
             </label>
 
-            <label class="panel half">
-              <div class="small">Sort By</div>
-              <select id="projSort">
-                <option value="name">Name</option>
-                <!-- hitters -->
-                <option value="pa">PA</option>
-                <option value="avg">AVG</option>
-                <option value="ops">OPS</option>
-                <option value="tb">TB</option>
-                <option value="hr">HR</option>
-                <option value="rbi">RBI</option>
-                <option value="r">R</option>
-                <option value="sb">SB</option>
+            <input
+              id="playerSearch"
+              type="text"
+              placeholder="Search name… (e.g., Soto, Ohtani)"
+              style="width:100%; padding:10px; border-radius:10px;"
+            />
 
-                <!-- pitchers -->
-                <option value="era">ERA</option>
-                <option value="whip">WHIP</option>
-                <option value="ip">IP</option>
-                <option value="qs">QS</option>
-                <option value="k">K</option>
-                <option value="sv">SV</option>
-                <option value="hld">HLD</option>
-              </select>
-            </label>
-          </div>
+            <div id="searchMeta" class="small" style="margin-top:8px; opacity:.7;"></div>
 
-          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-            <button id="btnApplyProj">Apply</button>
-            <button id="btnResetProj" class="ghost" type="button">Reset</button>
-            <span id="projStatus" class="small"></span>
-          </div>
-        </section>
+            <!-- Totals -->
+            <section class="grid" style="margin-top: 12px;">
+              <div class="panel half">
+                <strong>Hitting Totals </strong>
+                <div class="small" id="hitTotals">
+                  PA: — • TB: — • HR: — • RBI: — • R: — • SB: —
+                </div>
+              </div>
 
-       <!-- Eligibility -->
-<div class="elig-row">
-  <label class="elig-toggle">
-    <input type="checkbox" id="eligOnly" checked />
-    <span class="elig-title">Eligible only</span>
-  </label>
+              <div class="panel half">
+                <strong>Pitching Totals </strong>
+                <div class="small" id="pitTotals">
+                  IP: — • QS: — • K: — • SV: — • HLD: —
+                </div>
+              </div>
+            </section>
 
-  <div class="elig-meta">
-    Hitters <span class="mono">≥ 250 PA</span> · Pitchers <span class="mono">≥ 35 IP</span>
-  </div>
-</div>
+            <!-- Filters -->
+            <section class="panel" style="margin-top: 14px;">
+              <strong>Filters</strong>
 
-      </section>
+              <div class="grid" style="margin-top: 10px;">
+                <label class="panel half">
+                  <div class="small">Type</div>
+                  <select id="projType">
+                    <option value="all">All</option>
+                    <option value="hit">Hitters</option>
+                    <option value="pit">Pitchers</option>
+                  </select>
+                </label>
 
-      <!-- FULL-WIDTH HIT TABLE -->
-      <section id="hitSection" class="card full-width" style="margin-top: 14px;">
-        <div style="padding: 0 0 10px 0;">
-          <strong>Hitter Projections</strong>
-          <p class="small">Columns: Name, Team, POS, PA, AVG, OPS, TB, HR, RBI, R, SB</p>
-        </div>
+                <label class="panel half">
+                  <div class="small">Position</div>
+                  <select id="projPos">
+                    <option value="all">All</option>
+                  </select>
+                </label>
 
-        <div class="table-wrap">
-          <table class="data-table" id="hitTable">
-            <thead>
-              <tr>
-                <th style="text-align:left;">Name</th>
-                <th>Team</th>
-                <th>POS</th>
-                <th>PA</th>
-                <th>AVG</th>
-                <th>OPS</th>
-                <th>TB</th>
-                <th>HR</th>
-                <th>RBI</th>
-                <th>R</th>
-                <th>SB</th>
-              </tr>
-            </thead>
-            <tbody id="hitTbody">
-              <tr>
-                <td colspan="11" class="small" style="padding:12px;">No data yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+                <label class="panel half">
+                  <div class="small">Show Players</div>
+                  <select id="projShow">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all" selected>All</option>
+                  </select>
+                </label>
+              </div>
+            </section>
 
-      <!-- FULL-WIDTH PITCH TABLE -->
-      <section id="pitSection" class="card full-width" style="margin-top: 14px;">
-        <div style="padding: 0 0 10px 0;">
-          <strong>Pitcher Projections</strong>
-          <p class="small">Columns: Name, Team, POS (SP/RP/CP), ERA, WHIP, IP, QS, K, SV, HLD</p>
-        </div>
+            <!-- Eligibility -->
+            <div class="elig-row">
+              <label class="elig-toggle">
+                <input type="checkbox" id="eligOnly" checked />
+                <span class="elig-title">Eligible only</span>
+              </label>
 
-        <div class="table-wrap">
-          <table class="data-table" id="pitTable">
-            <thead>
-              <tr>
-                <th style="text-align:left;">Name</th>
-                <th>Team</th>
-                <th>POS</th>
-                <th>ERA</th>
-                <th>WHIP</th>
-                <th>IP</th>
-                <th>QS</th>
-                <th>K</th>
-                <th>SV</th>
-                <th>HLD</th>
-              </tr>
-            </thead>
-            <tbody id="pitTbody">
-              <tr>
-                <td colspan="10" class="small" style="padding:12px;">No data yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+              <div class="elig-meta">
+                Hitters <span class="mono">≥ 250 PA</span> · Pitchers <span class="mono">≥ 35 IP</span>
+              </div>
+            </div>
+          </section>
 
-    <script type="module" src="./js/projections-page.js"></script>
+          <!-- UNIFIED PROJECTIONS TABLE -->
+          <section class="card full-width" style="margin-top: 14px;">
+            <div class="table-wrap">
+              <table class="data-table" id="projTable">
+                <thead>
+                  <tr>
+  <th data-sort="rank">Rank</th>
+  <th data-sort="Name">Name</th>
+  <th data-sort="Team">Team</th>
+  <th data-sort="POS">Pos</th>
 
-    <script type="module">
-      import { setActiveTab, hydrateHeader } from "./js/nav.js";
-      setActiveTab();
-      hydrateHeader();
-    </script>
-  
+  <th data-sort="AVG">AVG</th>
+  <th data-sort="OPS">OPS</th>
+  <th data-sort="TB">TB</th>
+  <th data-sort="HR">HR</th>
+  <th data-sort="R">R</th>
+  <th data-sort="RBI">RBI</th>
+  <th data-sort="SB">SB</th>
+
+  <th data-sort="ERA">ERA</th>
+  <th data-sort="WHIP">WHIP</th>
+  <th data-sort="IP">IP</th>
+  <th data-sort="QS">QS</th>
+  <th data-sort="K">K</th>
+  <th data-sort="SV">SV</th>
+  <th data-sort="HLD">HLD</th>
+</tr>
+                </thead>
+                <tbody id="projTbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+
+        <script type="module" src="./js/projections-page.js"></script>
+
+        <script type="module">
+          import { setActiveTab, hydrateHeader } from "./js/nav.js";
+          setActiveTab();
+          hydrateHeader();
+        </script>
       </div>
     </div>
   </body>
