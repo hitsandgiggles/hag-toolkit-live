@@ -1239,6 +1239,35 @@ tr.planOverMax td.hardMaxCell {
 @media (max-width: 980px){
   .abTwoCol{ grid-template-columns: 1fr; }
 }
+/* ===== Auction Board: make Player Picker search feel primary ===== */
+.abSearch{
+  height: 56px;
+  padding: 0 18px;
+  font-size: 16px;
+  border-radius: 14px;
+
+  background: #ffffff;
+  border: 1px solid #e6ebf2;
+  color: #1a1a1a;
+
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.abSearch::placeholder{
+  color: #9aa4b2;
+}
+
+.abSearch:hover{
+  border-color: #d3dbe7;
+}
+
+.abSearch:focus{
+  border-color: #0018F9;
+  box-shadow:
+    0 0 0 3px rgba(0,24,249,0.10),
+    0 8px 18px rgba(0,0,0,0.08);
+}
 /* Allocation Visualizer: true center pie within panel */
 .allocRow{
   display:flex;
@@ -2249,3 +2278,33 @@ table thead th{
 
 .tc-tooltip .tt-item .nm { opacity: 0.9; }
 .tc-tooltip .tt-item .val { font-variant-numeric: tabular-nums; opacity: 0.9; }
+/* ===== Auction Board: make Player Picker search feel primary ===== */
+#pickQuery.abSearch{
+  width: 100% !important;
+  height: 56px !important;
+  padding: 0 18px !important;
+  font-size: 16px !important;
+  border-radius: 14px !important;
+
+  background: #ffffff !important;
+  border: 1px solid #e6ebf2 !important;
+  color: #111111 !important;
+
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+#pickQuery.abSearch::placeholder{
+  color: #9aa4b2 !important;
+}
+
+#pickQuery.abSearch:hover{
+  border-color: #d3dbe7 !important;
+}
+
+#pickQuery.abSearch:focus{
+  border-color: #0018F9 !important;
+  box-shadow:
+    0 0 0 3px rgba(0,24,249,0.10),
+    0 8px 18px rgba(0,0,0,0.08) !important;
+}
