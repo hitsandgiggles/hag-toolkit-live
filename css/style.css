@@ -721,6 +721,20 @@ p {
   letter-spacing: 0.4px;
   font-weight: 500;
 }
+/* Clickable sortable headers (Projections table) */
+.data-table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.data-table thead th.sortable:hover {
+  background: #E6ECF5;
+  color: #0018F9;
+}
+
+.data-table thead th.sorted {
+  color: #0018F9;
+}
 
 .data-table thead tr {
   

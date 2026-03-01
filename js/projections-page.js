@@ -5,6 +5,7 @@ import { normalizeName } from "./player-key.js";
 
 let ALL = [];
 let currentSort = "rank";
+let updateSortIndicators = () => {}; // set in init()
 
 // Final position list + required order (user spec)
 const POS_ORDER = ["C","1B","2B","3B","SS","CI","MI","LF","CF","RF","OF","UT","SP","RP","CP"];
@@ -282,9 +283,10 @@ function rebuild() {
   // Then cap after sort
   const capped = applyCap(sorted);
 
-  render(capped);
-  updateColumnVisibility();
-}
+    render(capped);
+    updateColumnVisibility();
+    updateSortIndicators();
+  }
 
 async function init() {
   const { hitters, pitchers } = await loadPlayers();
@@ -300,10 +302,46 @@ async function init() {
     posSelect.appendChild(opt);
   });
 
-  // Header click sorting
-  document.querySelectorAll("#projTable th").forEach(th => {
+    // Header click sorting + "clickable" styling + sort indicator arrows
+  const headers = Array.from(document.querySelectorAll("#projTable th"));
+
+  // Mark sortable headers and store their base label (so we can append arrows cleanly)
+  headers.forEach(th => {
+    const key = th.dataset.sort;
+    if (!key) return; // skip non-sort columns
+    th.classList.add("sortable");
+    th.dataset.label = th.textContent.trim();
+  });
+
+  updateSortIndicators = () => {
+    headers.forEach(th => {
+      const key = th.dataset.sort;
+      if (!key) return;
+
+      const label = th.dataset.label || th.textContent.replace(/[↑↓]/g, "").trim();
+      th.dataset.label = label;
+
+      const isActive = key === currentSort;
+      th.classList.toggle("sorted", isActive);
+
+      if (!isActive) {
+        th.textContent = label;
+        return;
+      }
+
+      // Fixed direction rules from your sortDir(): Name/Team/POS asc, ERA/WHIP asc, others desc.
+      // Rank is Proj (desc).
+      const dir = (currentSort === "rank") ? -1 : sortDir(currentSort);
+      const arrow = dir === +1 ? " ↑" : " ↓";
+      th.textContent = label + arrow;
+    });
+  };
+
+  headers.forEach(th => {
+    const key = th.dataset.sort;
+    if (!key) return;
     th.addEventListener("click", () => {
-      currentSort = th.dataset.sort;
+      currentSort = key;
       rebuild();
     });
   });
