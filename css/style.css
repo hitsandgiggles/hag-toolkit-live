@@ -164,7 +164,7 @@ main {
   font-size: 30px;   /* target ~30px in navbar/side header */
   line-height: 1;
   letter-spacing: 0.02em;
-  padding-left: 18px; /* space for the bar */
+  padding-left: 12px; /* space for the bar */
 }
 
 /* vertical bar */
