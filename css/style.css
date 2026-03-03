@@ -5,9 +5,14 @@
   --card: #FBFCFE;
   --text: #111111;
   --muted: #6B7280;
-  --border: #F1F4F8;
-  --accent: #002BFF;
-  --accent2: #C9A227;
+
+  /* keep main-content borders visible on white */
+  --border: #E6ECF2;
+
+  /* Brand */
+  --brand: #123A63;          /* FBASE text */
+  --brand-bar: #0F2F50;      /* Dark Blue 2 (vertical bar) */
+  --accent: var(--brand);    /* sidebar background uses this */
 }
 
 @media (max-width: 520px) {
@@ -135,24 +140,43 @@ main {
   display:flex;
   align-items:center;
   justify-content:center;
-  width: 84px;
+  width: 120px;
   height: 84px;
   border-radius: 18px;
   margin: 4px auto 14px auto;
-  border: 1px solid rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.10);
+
+  /* "card" on top of the brand sidebar */
+  background: rgba(255,255,255,0.94);
+  border: 1px solid rgba(255,255,255,0.85);
   text-decoration:none;
 }
 
-.homeBtn svg{
-  width: 34px;
-  height: 34px;
-  stroke: #FFFFFF;
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.95;
+.homeBtn:hover{
+  background: rgba(255,255,255,0.98);
+}
+
+/* FBASE mark */
+.fbaseMark{
+  position: relative;
+  display: inline-block;
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 30px;   /* target ~30px in navbar/side header */
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding-left: 18px; /* space for the bar */
+}
+
+/* vertical bar */
+.fbaseMark::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;       /* tweak: 5–6px */
+  height: 100%;
+  background: var(--brand-bar);
+  border-radius: 2px;
 }
 
 .homeBtn:hover{
