@@ -706,9 +706,24 @@ p {
   line-height: 1.5;
 }
 
+.introText {
+  max-width: 920px;
+  margin: 6px 0 14px 0;
+  line-height: 1.65;
+}
+
 .small {
   font-size: 13px;
   color: var(--text);
+}
+.muted {
+  color: var(--muted);
+}
+
+.pageSubtitle {
+  margin: 6px 0 12px 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 /* ===============================
