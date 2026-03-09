@@ -57,6 +57,11 @@ function loadPlannerState() {
 function savePlannerState(state) {
   localStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify(state));
 }
+function getCoverageRoster(roster) {
+  const state = loadPlannerState();
+  const minorsSet = new Set(Array.isArray(state?.minors) ? state.minors : []);
+  return roster.filter((p) => !minorsSet.has(p.id));
+}
 
 function normPosList(pos) {
   return String(pos ?? "")
@@ -95,7 +100,7 @@ function buildPlayerLabel(p) {
   return `${p.name}${team}${pos}${price}`;
 }
 
-function renderPlanner(roster) {
+function renderPlanner(roster, pool) {
   const hitWrap = document.getElementById("plannerHit");
   const pitWrap = document.getElementById("plannerPit");
   const benchHit = document.getElementById("benchHit");
@@ -107,6 +112,14 @@ function renderPlanner(roster) {
   if (!hitWrap || !pitWrap || !benchHit || !benchPit || !minorsList || !minorsAddSelect || !minorsAddBtn) return;
 
   const state = loadPlannerState();
+    
+  const rerenderCoverage = () => {
+    try {
+  renderTeamCoverage({ roster: getCoverageRoster(roster), players: pool });
+} catch (e) {
+  console.warn("[roster] team coverage failed", e);
+}
+  };
 
   // Clean up state if players were removed from roster
   const rosterIds = new Set(roster.map((p) => p.id));
@@ -130,10 +143,11 @@ function renderPlanner(roster) {
     next.minors = Array.isArray(next.minors) ? next.minors : [];
     next.slots = next.slots && typeof next.slots === "object" ? next.slots : {};
 
-    if (!playerIdOrEmpty) {
+        if (!playerIdOrEmpty) {
       delete next.slots[slotKey];
       savePlannerState(next);
-      renderPlanner(roster);
+      renderPlanner(roster, pool);
+      rerenderCoverage();
       return;
     }
 
@@ -143,10 +157,11 @@ function renderPlanner(roster) {
     }
 
     // If player is in minors, remove from minors
-    next.minors = next.minors.filter((id) => id !== playerIdOrEmpty);
+        next.minors = next.minors.filter((id) => id !== playerIdOrEmpty);
     next.slots[slotKey] = playerIdOrEmpty;
     savePlannerState(next);
-    renderPlanner(roster);
+    renderPlanner(roster, pool);
+    rerenderCoverage();
   };
 
   const moveToMinors = (playerId) => {
@@ -159,17 +174,19 @@ function renderPlanner(roster) {
       if (next.slots[k] === playerId) delete next.slots[k];
     }
 
-    if (!next.minors.includes(playerId)) next.minors.push(playerId);
+        if (!next.minors.includes(playerId)) next.minors.push(playerId);
     savePlannerState(next);
-    renderPlanner(roster);
+    renderPlanner(roster, pool);
+    rerenderCoverage();
   };
 
   const removeFromMinors = (playerId) => {
     const next = loadPlannerState();
     next.minors = Array.isArray(next.minors) ? next.minors : [];
-    next.minors = next.minors.filter((id) => id !== playerId);
+        next.minors = next.minors.filter((id) => id !== playerId);
     savePlannerState(next);
-    renderPlanner(roster);
+    renderPlanner(roster, pool);
+    rerenderCoverage();
   };
 
   // Render slot dropdowns
@@ -641,7 +658,7 @@ async function init() {
     );
 
     // Lineup planner (starting slots / benches / minors)
-    renderPlanner(roster);
+        renderPlanner(roster, pool);
 
     // Team Category Coverage (Z-Sum) panel
 try {
